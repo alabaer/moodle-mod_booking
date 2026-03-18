@@ -5199,7 +5199,7 @@ function xmldb_booking_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026030501, 'booking');
     }
 
-    if ($oldversion < 2026030502) {
+    if ($oldversion < 2026031103) {
         $table = new xmldb_table('booking_slot_config');
         $field = new xmldb_field(
             'booking_interface',
@@ -5212,14 +5212,12 @@ function xmldb_booking_upgrade($oldversion) {
             'max_slots_per_user'
         );
 
-        if (!$dbman->field_exists($table, $field)) {
+        if ($dbman->table_exists($table) && !$dbman->field_exists($table, $field)) {
             $dbman->add_field($table, $field);
         }
-
-        upgrade_mod_savepoint(true, 2026030502, 'booking');
     }
 
-    if ($oldversion < 2026030900) {
+    if ($oldversion < 2026031103) {
         // Define table booking_slot_student_teacher to be created.
         $table = new xmldb_table('booking_slot_student_teacher');
 
@@ -5244,11 +5242,9 @@ function xmldb_booking_upgrade($oldversion) {
         if (!$dbman->table_exists($table)) {
             $dbman->create_table($table);
         }
-
-        upgrade_mod_savepoint(true, 2026030900, 'booking');
     }
 
-    if ($oldversion < 2026031100) {
+    if ($oldversion < 2026031104) {
         // Define table booking_slot_config to be created.
         $table = new xmldb_table('booking_slot_config');
 
@@ -5265,6 +5261,7 @@ function xmldb_booking_upgrade($oldversion) {
         $table->add_field('days_of_week', XMLDB_TYPE_CHAR, '20', null, XMLDB_NOTNULL, null, '1,2,3,4,5');
         $table->add_field('max_participants_per_slot', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '1');
         $table->add_field('max_slots_per_user', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '1');
+        $table->add_field('booking_interface', XMLDB_TYPE_CHAR, '20', null, XMLDB_NOTNULL, null, 'list');
         $table->add_field('teacher_pool', XMLDB_TYPE_TEXT, null, null, null, null, null);
         $table->add_field('teachers_required', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
         $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
@@ -5315,7 +5312,7 @@ function xmldb_booking_upgrade($oldversion) {
         }
 
         // Booking savepoint reached.
-        upgrade_mod_savepoint(true, 2026031100, 'booking');
+        upgrade_mod_savepoint(true, 2026031104, 'booking');
     }
 
     return true;
