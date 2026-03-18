@@ -219,6 +219,22 @@ class slotbooking extends field_base {
         $mform->addElement('text', 'slot_teachers_required', get_string('slot_teachers_required', 'mod_booking'));
         $mform->setType('slot_teachers_required', PARAM_INT);
         $mform->hideIf('slot_teachers_required', 'optiontype', 'neq', MOD_BOOKING_OPTIONTYPE_SLOTBOOKING);
+
+        $mform->setDefault('slot_enabled', 0);
+        $mform->setDefault('slot_type', 'fixed');
+        $mform->setDefault('slot_duration_minutes', 30);
+        $mform->setDefault('slot_interval_minutes', 15);
+        $mform->setDefault('slot_opening_time', '08:00');
+        $mform->setDefault('slot_closing_time', '18:00');
+        $mform->setDefault('slot_valid_from', 0);
+        $mform->setDefault('slot_valid_until', 0);
+        $mform->setDefault('slot_max_participants_per_slot', 1);
+        $mform->setDefault('slot_max_slots_per_user', 1);
+        $mform->setDefault('slot_booking_view_mode', 'calendar');
+        $mform->setDefault('slot_teachers_required', 0);
+        for ($i = 1; $i <= 7; $i++) {
+            $mform->setDefault('slot_day_' . $i, $i <= 5 ? 1 : 0);
+        }
     }
 
     /**
@@ -350,24 +366,6 @@ class slotbooking extends field_base {
         global $DB;
 
         $optionid = (int)($data->id ?? $settings->id ?? 0);
-
-        $data->slot_enabled = 0;
-        $data->slot_type = 'fixed';
-        $data->slot_duration_minutes = 30;
-        $data->slot_interval_minutes = 15;
-        $data->slot_opening_time = '08:00';
-        $data->slot_closing_time = '18:00';
-        $data->slot_valid_from = 0;
-        $data->slot_valid_until = 0;
-        $data->slot_max_participants_per_slot = 1;
-        $data->slot_max_slots_per_user = 1;
-        $data->slot_booking_view_mode = 'calendar';
-        $data->slot_teacher_pool = [];
-        $data->slot_teachers_required = 0;
-        for ($i = 1; $i <= 7; $i++) {
-            $field = 'slot_day_' . $i;
-            $data->{$field} = ($i <= 5) ? 1 : 0;
-        }
 
         if (!empty($optionid)) {
             $config = $DB->get_record('booking_slot_config', ['optionid' => $optionid], '*', IGNORE_MISSING);
