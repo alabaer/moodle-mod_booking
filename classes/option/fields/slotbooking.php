@@ -316,38 +316,36 @@ class slotbooking extends field_base {
             return;
         }
 
+        $slottype = (string)$formdata->slot_type;
+        $issession = $slottype === 'session';
+
         $now = time();
         $record = new stdClass();
         $record->optionid = $optionid;
-        $slottype = (string)($formdata->slot_type ?? 'fixed');
-        if (!in_array($slottype, ['fixed', 'rolling', 'session'], true)) {
-            $slottype = 'fixed';
-        }
-
         $record->slot_type = $slottype;
-        $record->slot_duration_minutes = max(1, (int)($formdata->slot_duration_minutes ?? 30));
+        $record->slot_duration_minutes = (int)$formdata->slot_duration_minutes;
         $record->slot_interval_minutes = $record->slot_type === 'rolling'
-            ? max(1, (int)($formdata->slot_interval_minutes ?? 15))
+            ? (int)$formdata->slot_interval_minutes
             : $record->slot_duration_minutes;
-        $record->opening_time = $record->slot_type === 'session'
+        $record->opening_time = $issession
             ? '00:00'
-            : (string)($formdata->slot_opening_time ?? '08:00');
-        $record->closing_time = $record->slot_type === 'session'
+            : (string)$formdata->slot_opening_time;
+        $record->closing_time = $issession
             ? '23:59'
-            : (string)($formdata->slot_closing_time ?? '18:00');
-        $record->valid_from = $record->slot_type === 'session' ? 0 : (int)($formdata->slot_valid_from ?? 0);
-        $record->valid_until = $record->slot_type === 'session' ? 0 : (int)($formdata->slot_valid_until ?? 0);
-        $record->days_of_week = $record->slot_type === 'session' ? '1,2,3,4,5,6,7' : self::extract_days_of_week($formdata);
-        $record->max_participants_per_slot = max(1, (int)($formdata->slot_max_participants_per_slot ?? 1));
-        $record->max_slots_per_user = max(1, (int)($formdata->slot_max_slots_per_user ?? 1));
-        $record->booking_interface = ($formdata->slot_booking_view_mode ?? 'calendar') === 'calendar' ? 'calendar' : 'list';
+            : (string)$formdata->slot_closing_time;
+        $record->valid_from = $issession ? 0 : (int)$formdata->slot_valid_from;
+        $record->valid_until = $issession ? 0 : (int)$formdata->slot_valid_until;
+        $record->days_of_week = $issession ? '1,2,3,4,5,6,7' : self::extract_days_of_week($formdata);
+        $record->max_participants_per_slot = (int)$formdata->slot_max_participants_per_slot;
+        $record->max_slots_per_user = (int)$formdata->slot_max_slots_per_user;
+        $record->booking_interface = (string)$formdata->slot_booking_view_mode;
         $record->teacher_pool = json_encode(self::extract_teacher_pool_from_formdata($formdata));
-        $record->teachers_required = max(0, (int)($formdata->slot_teachers_required ?? 0));
-        $record->timemodified = $now;
+        $record->teachers_required = (int)$formdata->slot_teachers_required;
 
         if ($existing = $DB->get_record('booking_slot_config', ['optionid' => $optionid], '*', IGNORE_MISSING)) {
             $record->id = $existing->id;
             $record->timecreated = $existing->timecreated;
+            $record->timemodified = $now;
             $DB->update_record('booking_slot_config', $record);
         } else {
             $record->timecreated = $now;
