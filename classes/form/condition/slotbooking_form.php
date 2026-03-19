@@ -30,6 +30,7 @@ use core_form\dynamic_form;
 use html_writer;
 use mod_booking\local\mobile\slotbookingstore;
 use mod_booking\local\slotbooking\slot_availability;
+use mod_booking\option\fields\slotbooking as slotbooking_field;
 use mod_booking\singleton_service;
 use moodle_url;
 use stdClass;
@@ -191,9 +192,16 @@ class slotbooking_form extends dynamic_form {
         $config = $settings->slotconfig ?? null;
         $maxslots = max(1, (int)($config->max_slots_per_user ?? 1));
         $teachersrequired = max(0, (int)($config->teachers_required ?? 0));
-        $viewmode = in_array((string)($config->booking_interface ?? 'list'), ['list', 'calendar'], true)
+        $viewmode = in_array(
+            (string)($config->booking_interface ?? slotbooking_field::SLOT_BOOKING_VIEW_LIST),
+            [
+                slotbooking_field::SLOT_BOOKING_VIEW_LIST,
+                slotbooking_field::SLOT_BOOKING_VIEW_CALENDAR,
+            ],
+            true
+        )
             ? (string)$config->booking_interface
-            : 'list';
+            : slotbooking_field::SLOT_BOOKING_VIEW_LIST;
 
         $openslots = self::get_open_slots($optionid, $userid);
 
@@ -224,16 +232,16 @@ class slotbooking_form extends dynamic_form {
         $mform->addElement('hidden', 'slot_calendar_data', json_encode($openslots));
         $mform->setType('slot_calendar_data', PARAM_RAW_TRIMMED);
 
-        if ($viewmode === 'calendar') {
+        if ($viewmode === slotbooking_field::SLOT_BOOKING_VIEW_CALENDAR) {
             $mform->addElement('hidden', 'slot_selection', '');
             $mform->setType('slot_selection', PARAM_TEXT);
 
-            $mform->setDefault('slot_validation_error_target', 'slot_calendar_ui');
+            $mform->setDefault('slot_validation_error_target', 'slot_selection_ui');
 
             $calendarcontainer = html_writer::div('', 'booking-slot-calendar-picker', [
                 'data-region' => 'slot-calendar-picker',
             ]);
-            $mform->addElement('static', 'slot_calendar_ui', get_string('slot_selection', 'mod_booking'), $calendarcontainer);
+            $mform->addElement('static', 'slot_selection_ui', get_string('slot_selection', 'mod_booking'), $calendarcontainer);
             return;
         }
 
@@ -241,8 +249,10 @@ class slotbooking_form extends dynamic_form {
             $mform->addElement('hidden', 'slot_selection', '');
             $mform->setType('slot_selection', PARAM_TEXT);
 
+            $mform->addElement('static', 'slot_selection_ui', get_string('slot_selection', 'mod_booking'), '');
+
             if (!empty($openslots)) {
-                $mform->setDefault('slot_validation_error_target', self::slot_selection_checkbox_name(0));
+                $mform->setDefault('slot_validation_error_target', 'slot_selection_ui');
             }
 
             foreach ($openslots as $index => $slot) {
