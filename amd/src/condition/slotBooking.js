@@ -29,6 +29,10 @@ const SELECTOR = {
     CONTINUEBUTTON: ' div.prepage-booking-footer .continue-button',
 };
 
+const LISTPAGINATION = {
+    PAGESIZE: 10,
+};
+
 const parseSlots = (jsonInput) => {
     if (!jsonInput) {
         return [];
@@ -107,6 +111,92 @@ const ensureTeacherContainer = (container, anchor) => {
     }
 
     return teacherContainer;
+};
+
+const getListModeCheckboxRows = (container) => {
+    const checkboxes = Array.from(container.querySelectorAll('input[type="checkbox"][name^="slot_selection_cb_"]'));
+    return checkboxes
+        .map(checkbox => checkbox.closest('.fitem') || checkbox.parentElement)
+        .filter(Boolean);
+};
+
+const setupListPagination = (container) => {
+    const rows = getListModeCheckboxRows(container);
+    const oldPagination = container.querySelector('[data-region="slot-list-pagination"]');
+    if (oldPagination) {
+        oldPagination.remove();
+    }
+
+    if (rows.length <= LISTPAGINATION.PAGESIZE) {
+        rows.forEach(row => {
+            row.hidden = false;
+        });
+        return;
+    }
+
+    const insertionAnchor = rows[rows.length - 1];
+    if (!insertionAnchor || !insertionAnchor.parentNode) {
+        rows.forEach(row => {
+            row.hidden = false;
+        });
+        return;
+    }
+
+    const totalPages = Math.ceil(rows.length / LISTPAGINATION.PAGESIZE);
+    let currentPage = 1;
+
+    const pagination = document.createElement('div');
+    pagination.dataset.region = 'slot-list-pagination';
+    pagination.className = 'd-flex align-items-center justify-content-between mt-2';
+
+    const prevButton = document.createElement('button');
+    prevButton.type = 'button';
+    prevButton.className = 'btn btn-secondary btn-sm';
+    prevButton.textContent = '<';
+
+    const nextButton = document.createElement('button');
+    nextButton.type = 'button';
+    nextButton.className = 'btn btn-secondary btn-sm';
+    nextButton.textContent = '>';
+
+    const status = document.createElement('span');
+    status.className = 'small text-muted';
+
+    const renderPage = () => {
+        const start = (currentPage - 1) * LISTPAGINATION.PAGESIZE;
+        const end = start + LISTPAGINATION.PAGESIZE;
+
+        rows.forEach((row, index) => {
+            row.hidden = index < start || index >= end;
+        });
+
+        status.textContent = `Page ${currentPage}/${totalPages}`;
+        prevButton.disabled = currentPage <= 1;
+        nextButton.disabled = currentPage >= totalPages;
+    };
+
+    prevButton.addEventListener('click', () => {
+        if (currentPage <= 1) {
+            return;
+        }
+        currentPage -= 1;
+        renderPage();
+    });
+
+    nextButton.addEventListener('click', () => {
+        if (currentPage >= totalPages) {
+            return;
+        }
+        currentPage += 1;
+        renderPage();
+    });
+
+    pagination.appendChild(prevButton);
+    pagination.appendChild(status);
+    pagination.appendChild(nextButton);
+
+    insertionAnchor.parentNode.insertBefore(pagination, insertionAnchor.nextSibling);
+    renderPage();
 };
 
 const renderTeacherSelection = (
@@ -257,6 +347,10 @@ export async function init() {
 
         if (!selectionInput) {
             return;
+        }
+
+        if (!calendarRoot) {
+            setupListPagination(container);
         }
 
         const slots = parseSlots(jsonInput);
