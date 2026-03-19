@@ -30,6 +30,95 @@ var currentbookitpage = {};
 var totalbookitpages = {};
 var inlineprepageconfig = {};
 
+/**
+ * Registers one delegated listener for bootstrap modal show events.
+ */
+const registerPrepageModalDelegatedListener = () => {
+    const container = document.querySelector('body');
+    if (!container || container.dataset.prepageModalDelegated) {
+        return;
+    }
+
+    container.dataset.prepageModalDelegated = 'true';
+
+    container.addEventListener('shown.bs.modal', event => {
+
+        // eslint-disable-next-line no-console
+        console.log('modal shown', event);
+
+        const modal = event.target.closest('[id^="' + SELECTORS.MODALID + '"]');
+        if (!modal) {
+            return;
+        }
+
+              // eslint-disable-next-line no-console
+        console.log('modal shown', modal);
+
+
+        if (modal.querySelector('[data-action="bookondetail"]')) {
+            return;
+        }
+
+        // eslint-disable-next-line no-console
+        console.log('modal bookondetail', event);
+
+
+        const optionid = modal.dataset.optionid;
+        const userid = modal.dataset.userid;
+        const uniquid = modal.dataset.uniquid;
+        const totalnumberofpages = modal.dataset.pages;
+
+        // eslint-disable-next-line no-console
+        console.log(optionid, userid, uniquid, totalnumberofpages);
+
+        if (!optionid || !uniquid || !totalnumberofpages) {
+            return;
+        }
+
+        currentbookitpage[optionid] = 0;
+        totalbookitpages[optionid] = totalnumberofpages;
+
+        loadPreBookingPage(optionid, userid, uniquid);
+    });
+};
+
+/**
+ * Gets inline prepage config for an option from memory or DOM.
+ * @param {integer} optionid
+ * @param {integer} userid
+ * @returns {object|null}
+ */
+const getInlinePrepageConfig = (optionid, userid = 0) => {
+    if (inlineprepageconfig[optionid]) {
+        return inlineprepageconfig[optionid];
+    }
+
+    const inlinecontainer = document.querySelector('[id^="' + SELECTORS.INLINEID + optionid + '_"]');
+    if (!inlinecontainer) {
+        return null;
+    }
+
+    const uniquid = inlinecontainer.dataset.uniquid;
+    const pages = inlinecontainer.dataset.pages;
+    const inlineuserid = inlinecontainer.dataset.userid || userid;
+
+    if (!uniquid) {
+        return null;
+    }
+
+    currentbookitpage[optionid] = 0;
+    if (pages) {
+        totalbookitpages[optionid] = pages;
+    }
+
+    inlineprepageconfig[optionid] = {
+        userid: inlineuserid,
+        uniquid,
+    };
+
+    return inlineprepageconfig[optionid];
+};
+
 export var SELECTORS = {
     MODALID: 'sbPrePageModal_',
     INLINEID: 'sbPrePageInline_',
@@ -54,11 +143,40 @@ export const initbookitbutton = () => {
         return;
     }
 
+    // Intercept cancel clicks before bootstrap's document modal handlers fire.
+    if (!container.dataset.bookitCancelCaptureDelegated) {
+        container.dataset.bookitCancelCaptureDelegated = 'true';
+
+        window.addEventListener('click', (e) => {
+            const cancelButton = e.target.closest('.bo-cancel-button');
+            if (!cancelButton) {
+                return;
+            }
+
+            const button = cancelButton.closest(SELECTORS.BOOKITBUTTON + '[data-itemid][data-area]');
+            if (!button || button.classList.contains('disabled')) {
+                return;
+            }
+
+            const {itemid, area, userid} = button.dataset;
+
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            e.stopPropagation();
+
+            bookit(itemid, area, userid, button.dataset);
+        }, true);
+    }
+
     // Add one event listener only once
     if (!container.dataset.bookitDelegated) {
         container.dataset.bookitDelegated = 'true';
 
         container.addEventListener('click', (e) => {
+
+            const cancelButton = e.target.closest('.bo-cancel-button');
+            const iscancel = !!cancelButton;
+
             const button = e.target.closest(SELECTORS.BOOKITBUTTON + '[data-itemid][data-area]');
             if (!button) {
                 return;
@@ -73,11 +191,19 @@ export const initbookitbutton = () => {
             }
 
             // Ignore disabled buttons
-            if (button.dataset.nojs == 1) {
+            if (
+                button.dataset.nojs == 1
+                && !iscancel
+            ) {
                 return;
             }
 
             const {itemid, area, userid} = button.dataset;
+
+            if (iscancel) {
+                // Handled in capture phase to beat bootstrap's modal data-api listeners.
+                return;
+            }
 
             if (cancelTarget) {
                 import('local_shopping_cart/shistory')
@@ -94,7 +220,7 @@ export const initbookitbutton = () => {
                     bookit(itemid, area, userid, button.dataset);
                 }
             }
-        });
+        }, true);
     }
 };
 
@@ -145,7 +271,8 @@ export function bookit(itemid, area, userid, data) {
                 console.log('bookit values', button.dataset.nojs, res.status);
                 skipreload = true;
                 if (button.dataset.nojs == 1
-                    && res.status == 0) {
+                    && res.status == 0
+                    && 1 == 2) {
                     // eslint-disable-next-line no-console
                     console.log('bookit skip', button.dataset.nojs, res.status);
                 } else {
@@ -154,13 +281,42 @@ export function bookit(itemid, area, userid, data) {
                     if (res.status == 1) {
                         skipreload = false;
                     }
+
+                    const originalbutton = button;
+
                     templates.forEach(template => {
 
                         const data = arraytoreduce.shift();
-
+                        const shortHash = Math.random().toString(36).slice(2, 7);
                         const datatorender = data.data ?? data;
 
+                        if (
+                            template === "mod_booking/bookingpage/prepagemodal"
+                            || template === "mod_booking/bookingpage/prepageinline"
+                        ) {
+                            button = button.closest('div[data-bs-toggle="modal"]')
+                                    ?? button.closest('div[data-bs-toggle="collapse"]');
+                            datatorender.uniquid = shortHash;
+
+                            // eslint-disable-next-line no-console
+                            console.log('button', button);
+
+                            if (button) {
+                                const targetmodalid = button.dataset.bsTarget?.replace('#', '');
+                                if (targetmodalid) {
+                                    const targetmodal = document.getElementById(targetmodalid);
+                                    if (targetmodal) {
+                                        targetmodal.remove();
+                                    }
+                                }
+                            }
+                        } else {
+                            button = originalbutton;
+                        }
+
                         const promise = Templates.renderForPromise(template, datatorender).then(({html, js}) => {
+
+                            // Here, we might need to replace the parent node instead of button.
 
                             Templates.replaceNode(button, html, js);
 
@@ -218,34 +374,12 @@ export const initprepagemodal = (optionid, userid, totalnumberofpages, uniquid) 
     // eslint-disable-next-line no-console
     console.log('initprepagemodal', optionid, userid, totalnumberofpages, uniquid);
 
-    if (!optionid || !uniquid || !totalnumberofpages) {
+    registerPrepageModalDelegatedListener();
 
-        const elements = document.querySelectorAll("[id^=" + SELECTORS.MODALID);
-
-        elements.forEach(element => {
-
-            if (element.querySelector('[data-action="bookondetail"]')) {
-                // eslint-disable-next-line no-console
-                console.log('bookondetail abort');
-                return;
-            }
-
-            optionid = element.dataset.optionid;
-            uniquid = element.dataset.uniquid;
-            userid = element.dataset.userid;
-            totalnumberofpages = element.dataset.pages;
-            if (optionid && uniquid) {
-                initprepagemodal(optionid, userid, totalnumberofpages, uniquid);
-            }
-        });
-        return;
+    if (optionid && totalnumberofpages) {
+        currentbookitpage[optionid] = 0;
+        totalbookitpages[optionid] = totalnumberofpages;
     }
-
-    currentbookitpage[optionid] = 0;
-    totalbookitpages[optionid] = totalnumberofpages;
-
-    // We need to get all prepage modals on this site. Make sure they are initialized.
-    respondToVisibility(optionid, userid, uniquid, totalnumberofpages, loadPreBookingPage);
 };
 
 /**
@@ -260,32 +394,17 @@ export const initprepageinline = (optionid, userid, totalnumberofpages, uniquid)
     // eslint-disable-next-line no-console
     console.log('initprepageinline', optionid, userid, totalnumberofpages, uniquid);
 
-    if (!optionid || !uniquid || !totalnumberofpages) {
-
-        const elements = document.querySelectorAll("[id^=" + SELECTORS.INLINEID);
-
-        // eslint-disable-next-line no-console
-        console.log(elements);
-
-        elements.forEach(element => {
-            optionid = element.dataset.optionid;
-            uniquid = element.dataset.uniquid;
-            userid = element.dataset.userid;
-            totalnumberofpages = element.dataset.pages;
-            if (optionid && uniquid) {
-                initprepageinline(optionid, userid, totalnumberofpages, uniquid);
-            }
-        });
-        return;
+    if (optionid && totalnumberofpages) {
+        currentbookitpage[optionid] = 0;
+        totalbookitpages[optionid] = totalnumberofpages;
     }
 
-    currentbookitpage[optionid] = 0;
-    totalbookitpages[optionid] = totalnumberofpages;
-
-    inlineprepageconfig[optionid] = {
-        userid,
-        uniquid,
-    };
+    if (optionid && uniquid) {
+        inlineprepageconfig[optionid] = {
+            userid,
+            uniquid,
+        };
+    }
 
     const container = document.querySelector('body');
     if (!container) {
@@ -319,7 +438,7 @@ export const initprepageinline = (optionid, userid, totalnumberofpages, uniquid)
             console.log('e.target', e.target);
 
             const optionid = button.dataset.itemid;
-            const config = inlineprepageconfig[optionid];
+            const config = getInlinePrepageConfig(optionid, button.dataset.userid);
 
             if (!config || !config.uniquid) {
                 return;
@@ -348,57 +467,6 @@ export const initprepageinline = (optionid, userid, totalnumberofpages, uniquid)
         });
     }
 };
-
-/**
- * React on visibility change.
- * @param {integer} optionid
- * @param {integer} userid
- * @param {string} uniquid
- * @param {integer} totalnumberofpages
- * @param {function} callback
- */
-function respondToVisibility(optionid, userid, uniquid, totalnumberofpages, callback) {
-
-    let elements = document.querySelectorAll("[id^=" + SELECTORS.MODALID + optionid + "_" + uniquid + "]");
-
-    elements.forEach(element => {
-
-        if (!element || element.dataset.initialized == 'true') {
-            return;
-        }
-
-        element.dataset.initialized = true;
-
-        var observer = new MutationObserver(function() {
-
-            if (!isHidden(element)) {
-
-                // Because of the modal animation, "isHIdden" is also true on hiding modal.
-                if (element.classList.contains('show')) {
-
-                    // Todo: Make sure it's not triggered on close.
-                    callback(optionid, userid, uniquid, totalnumberofpages);
-                }
-            }
-        });
-
-        // We look if we find a hidden parent. If not, we load right away.
-        while (element !== null) {
-            if (!isHidden(element)) {
-                element = element.parentElement;
-            } else {
-                if (element.dataset.observed) {
-                    return;
-                }
-
-                observer.observe(element, {attributes: true});
-                element.dataset.observed = true;
-                return;
-            }
-        }
-        callback(optionid, userid, uniquid, totalnumberofpages);
-    });
-}
 
 /**
  * Function to check visibility of element.

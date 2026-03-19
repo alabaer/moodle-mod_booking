@@ -146,7 +146,7 @@ class booking_bookit {
                     if (modechecker::use_special_details_page_treatment()) {
                         $justmyalert = false;
                         $extrabuttoncondition = $result['classname'];
-                        $renderprepagemodal = false;
+                        // $renderprepagemodal = false;
                     }
                     break;
             }
@@ -376,7 +376,11 @@ class booking_bookit {
 
                 // This means we can actuall book on waitinglist.
                 $isavailable = true;
-            } else if ($id === MOD_BOOKING_BO_COND_ALREADYBOOKED || $id === MOD_BOOKING_BO_COND_ONWAITINGLIST) {
+            } else if (
+                $id === MOD_BOOKING_BO_COND_ALREADYBOOKED
+                || $id === MOD_BOOKING_BO_COND_ONWAITINGLIST
+                || $id === MOD_BOOKING_BO_COND_CANCELMYSELF
+            ) {
                 $cancelmyself = new cancelmyself();
                 // Add a layer of security to not cancel just because of unintentional double click.
                 if (
