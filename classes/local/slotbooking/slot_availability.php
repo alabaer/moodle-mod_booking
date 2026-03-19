@@ -563,6 +563,72 @@ class slot_availability {
     }
 
     /**
+     * Returns summarized slot counts for option list and option description displays.
+     *
+     * @param int $optionid booking option id
+     * @param int $userid user id
+     * @param string $displaymode one of: availableforuser, bookedvscapacity
+     * @return array{displaymode:string, booked:int, capacity:int, available:int, text:string}
+     */
+    public static function get_slot_count_summary(int $optionid, int $userid = 0, string $displaymode = 'availableforuser'): array {
+        if (!in_array($displaymode, ['availableforuser', 'bookedvscapacity'], true)) {
+            $displaymode = 'availableforuser';
+        }
+
+        $summary = [
+            'displaymode' => $displaymode,
+            'booked' => 0,
+            'capacity' => 0,
+            'available' => 0,
+            'text' => '0',
+        ];
+
+        $slots = self::get_slots_with_status($optionid, $userid);
+        if (empty($slots)) {
+            return $summary;
+        }
+
+        if ($displaymode === 'bookedvscapacity') {
+            $config = self::get_slot_config($optionid);
+            $slottype = (string)($config->slot_type ?? slotbooking::SLOT_TYPE_FIXED);
+
+            if ($slottype === slotbooking::SLOT_TYPE_SESSION) {
+                foreach ($slots as $slot) {
+                    if (($slot['status'] ?? '') === 'unavailable') {
+                        continue;
+                    }
+
+                    $summary['capacity']++;
+                    if ((int)($slot['bookings'] ?? 0) > 0) {
+                        $summary['booked']++;
+                    }
+                }
+            } else {
+                foreach ($slots as $slot) {
+                    if (($slot['status'] ?? '') === 'unavailable') {
+                        continue;
+                    }
+
+                    $summary['booked'] += max(0, (int)($slot['bookings'] ?? 0));
+                    $summary['capacity'] += max(0, (int)($slot['capacity'] ?? 0));
+                }
+            }
+
+            $summary['text'] = $summary['booked'] . ' / ' . $summary['capacity'];
+            return $summary;
+        }
+
+        foreach ($slots as $slot) {
+            if (in_array((string)($slot['status'] ?? 'unavailable'), ['open', 'warning'], true)) {
+                $summary['available']++;
+            }
+        }
+
+        $summary['text'] = (string)$summary['available'];
+        return $summary;
+    }
+
+    /**
      * Returns slots with availability status for an explicit range.
      *
      * @param int $optionid booking option id

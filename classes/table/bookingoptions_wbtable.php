@@ -50,7 +50,6 @@ use mod_booking\booking;
 use mod_booking\booking_bookit;
 use mod_booking\booking_option;
 use mod_booking\option\dates_handler;
-use mod_booking\option\fields\slotbooking;
 use mod_booking\output\col_availableplaces;
 use mod_booking\output\col_teacher;
 use mod_booking\price;
@@ -654,47 +653,8 @@ class bookingoptions_wbtable extends wunderbyte_table {
         $isslotoption = (int)($settings->type ?? MOD_BOOKING_OPTIONTYPE_DEFAULT) === MOD_BOOKING_OPTIONTYPE_SLOTBOOKING;
         if ($isslotoption) {
             $displaymode = (string)get_config('booking', 'slot_bookings_display_mode');
-            if (!in_array($displaymode, ['availableforuser', 'bookedvscapacity'], true)) {
-                $displaymode = 'availableforuser';
-            }
-
-            $slots = slot_availability::get_slots_with_status((int)$values->id, $targetuserid);
-            $slottype = (string)($settings->slotconfig->slot_type ?? slotbooking::SLOT_TYPE_FIXED);
-
-            $slotcounttext = '';
-            if ($displaymode === 'bookedvscapacity') {
-                if ($slottype === slotbooking::SLOT_TYPE_SESSION) {
-                    // Session-based slots map 1:1 to option sessions, so we display slot counts (booked / total slots).
-                    $bookedslots = 0;
-                    $totalslots = count($slots);
-                    foreach ($slots as $slot) {
-                        if ((int)($slot['bookings'] ?? 0) > 0) {
-                            $bookedslots++;
-                        }
-                    }
-                    $slotcounttext = $bookedslots . ' / ' . $totalslots;
-                } else {
-                    // Keep legacy places-based display for generated fixed/rolling slots.
-                    $bookedslots = 0;
-                    $bookableslots = 0;
-                    foreach ($slots as $slot) {
-                        if (($slot['status'] ?? '') === 'unavailable') {
-                            continue;
-                        }
-                        $bookedslots += max(0, (int)($slot['bookings'] ?? 0));
-                        $bookableslots += max(0, (int)($slot['capacity'] ?? 0));
-                    }
-                    $slotcounttext = $bookedslots . ' / ' . $bookableslots;
-                }
-            } else {
-                $availableuserslots = 0;
-                foreach ($slots as $slot) {
-                    if (in_array((string)($slot['status'] ?? 'unavailable'), ['open', 'warning'], true)) {
-                        $availableuserslots++;
-                    }
-                }
-                $slotcounttext = (string)$availableuserslots;
-            }
+            $summary = slot_availability::get_slot_count_summary((int)$values->id, $targetuserid, $displaymode);
+            $slotcounttext = $summary['text'];
 
             if ($this->is_downloading()) {
                 return $slotcounttext;

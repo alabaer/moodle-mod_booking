@@ -34,6 +34,7 @@ use mod_booking\booking_bookit;
 use mod_booking\booking_context_helper;
 use mod_booking\booking_option;
 use mod_booking\local\modechecker;
+use mod_booking\local\slotbooking\slot_availability;
 use mod_booking\option\dates_handler;
 use mod_booking\option\fields\competencies;
 use mod_booking\placeholders\placeholders_info;
@@ -348,6 +349,20 @@ class bookingoption_description implements renderable, templatable {
         $fullbookinginformation = $bookinganswers->return_all_booking_information($user->id);
         // We need to pop out the first value which is by itself another array containing the information we need.
         $this->bookinginformation = array_pop($fullbookinginformation);
+
+        $isslotoption = (int)($settings->type ?? MOD_BOOKING_OPTIONTYPE_DEFAULT) === MOD_BOOKING_OPTIONTYPE_SLOTBOOKING;
+        if ($isslotoption && is_array($this->bookinginformation)) {
+            $displaymode = (string)get_config('booking', 'slot_bookings_display_mode');
+            $summary = slot_availability::get_slot_count_summary((int)$settings->id, (int)$user->id, $displaymode);
+            if ($displaymode === 'bookedvscapacity') {
+                if ((int)$summary['capacity'] > 0) {
+                    $this->bookinginformation['booked'] = (int)$summary['booked'];
+                    $this->bookinginformation['maxanswers'] = (int)$summary['capacity'];
+                    $this->bookinginformation['freeonlist'] = max(0, (int)$summary['capacity'] - (int)$summary['booked']);
+                    $this->bookinginformation['fullybooked'] = (int)$summary['booked'] >= (int)$summary['capacity'];
+                }
+            }
+        }
 
         $syscontext = context_system::instance();
         $modcontext = context_module::instance($cmid);

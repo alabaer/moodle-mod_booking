@@ -268,7 +268,7 @@ class slotbooking implements bo_condition {
             return;
         }
 
-        $settings = \mod_booking\singleton_service::get_instance_of_booking_option_settings($optionid);
+        $settings = singleton_service::get_instance_of_booking_option_settings($optionid);
         $condition = new self();
         if (!$condition->is_slot_booking_enabled($settings)) {
             return;
