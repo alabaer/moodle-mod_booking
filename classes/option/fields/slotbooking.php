@@ -201,7 +201,7 @@ class slotbooking extends field_base {
         if (!empty($formdata['cmid'])) {
             [$course] = get_course_and_cm_from_cmid((int)$formdata['cmid']);
             $coursecontext = context_course::instance($course->id);
-            $teachers = get_enrolled_users($coursecontext, 'mod/booking:addinstance');
+            $teachers = get_enrolled_users($coursecontext, 'mod/booking:examiner');
             foreach ($teachers as $teacher) {
                 $teacheroptions[$teacher->id] = fullname($teacher);
             }

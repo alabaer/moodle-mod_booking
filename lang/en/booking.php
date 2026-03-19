@@ -1781,6 +1781,7 @@ $string['mobilesubmittedsuccess'] = 'You can continue and book the course';
 $string['mobileviewoptionsdesc'] = 'Selection of available mobile views';
 $string['mobileviewoptionstext'] = 'Mobile Views';
 $string['mod/booking:bookanyone'] = 'Book anyone';
+$string['mod/booking:examiner'] = 'Examiner';
 $string['mod/booking:expertoptionform'] = 'Bookingoption for experts';
 $string['mod/booking:reducedoptionform1'] = 'Reduced booking option 1';
 $string['mod/booking:reducedoptionform2'] = 'Reduced booking option 2';
