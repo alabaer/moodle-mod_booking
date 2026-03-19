@@ -25,6 +25,7 @@
 namespace mod_booking\local\slotbooking;
 
 use core_text;
+use mod_booking\option\fields\slotbooking;
 use mod_booking\singleton_service;
 
 /**
@@ -446,7 +447,7 @@ class slot_availability {
             return [];
         }
 
-        if ((string)($config->slot_type ?? 'fixed') === 'session') {
+        if ((string)($config->slot_type ?? slotbooking::SLOT_TYPE_FIXED) === slotbooking::SLOT_TYPE_SESSION) {
             return self::get_session_slots_for_range($optionid, $rangestart, $rangeend);
         }
 
@@ -455,7 +456,7 @@ class slot_availability {
             return [];
         }
 
-        $interval = ((string)$config->slot_type === 'rolling')
+        $interval = ((string)$config->slot_type === slotbooking::SLOT_TYPE_ROLLING)
             ? ((int)$config->slot_interval_minutes * MINSECS)
             : $duration;
 

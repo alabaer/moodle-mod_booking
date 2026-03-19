@@ -50,6 +50,7 @@ use mod_booking\booking;
 use mod_booking\booking_bookit;
 use mod_booking\booking_option;
 use mod_booking\option\dates_handler;
+use mod_booking\option\fields\slotbooking;
 use mod_booking\output\col_availableplaces;
 use mod_booking\output\col_teacher;
 use mod_booking\price;
@@ -658,11 +659,11 @@ class bookingoptions_wbtable extends wunderbyte_table {
             }
 
             $slots = slot_availability::get_slots_with_status((int)$values->id, $targetuserid);
-            $slottype = (string)($settings->slotconfig->slot_type ?? 'fixed');
+            $slottype = (string)($settings->slotconfig->slot_type ?? slotbooking::SLOT_TYPE_FIXED);
 
             $slotcounttext = '';
             if ($displaymode === 'bookedvscapacity') {
-                if ($slottype === 'session') {
+                if ($slottype === slotbooking::SLOT_TYPE_SESSION) {
                     // Session-based slots map 1:1 to option sessions, so we display slot counts (booked / total slots).
                     $bookedslots = 0;
                     $totalslots = count($slots);

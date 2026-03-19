@@ -35,6 +35,7 @@ use DateTimeZone;
 use local_entities\entitiesrelation_handler;
 use mod_booking\customfield\optiondate_cfields;
 use mod_booking\option\dates_handler;
+use mod_booking\option\fields\slotbooking;
 use mod_booking\option\optiondate;
 use mod_booking\option\time_handler;
 use moodle_exception;
@@ -98,10 +99,10 @@ class dates {
         $currentslottype = $formdata['slot_type']
             ?? (string)($defaultvalues['slot_type']
             ?? $bookingoptionsettings->slotconfig->slot_type
-            ?? 'fixed');
+            ?? slotbooking::SLOT_TYPE_FIXED);
         $isselflearning = !empty($defaultvalues['selflearningcourse'] ?? $bookingoptionsettings->selflearningcourse ?? 0);
         $allowoptiondates = !$isselflearning
-            && ($currentoptiontype !== MOD_BOOKING_OPTIONTYPE_SLOTBOOKING || $currentslottype === 'session');
+            && ($currentoptiontype !== MOD_BOOKING_OPTIONTYPE_SLOTBOOKING || $currentslottype === slotbooking::SLOT_TYPE_SESSION);
 
         $semestersarray = semester::get_semesters_id_name_array();
 
@@ -138,7 +139,7 @@ class dates {
             $element->setValue($semesterid);
             $mform->hideIf('semesterid', 'selflearningcourse', 'eq', 1);
             $mform->hideIf('semesterid', 'optiontype', 'eq', MOD_BOOKING_OPTIONTYPE_SLOTBOOKING);
-            $mform->hideIf('semesterid', 'slot_type', 'eq', 'session');
+            $mform->hideIf('semesterid', 'slot_type', 'eq', slotbooking::SLOT_TYPE_SESSION);
             $elements[] = $element;
 
             $element = $mform->addElement(
@@ -152,7 +153,7 @@ class dates {
             $element->setValue($dayofweektime);
             $mform->hideIf('dayofweektime', 'selflearningcourse', 'eq', 1);
             $mform->hideIf('dayofweektime', 'optiontype', 'eq', MOD_BOOKING_OPTIONTYPE_SLOTBOOKING);
-            $mform->hideIf('dayofweektime', 'slot_type', 'eq', 'session');
+            $mform->hideIf('dayofweektime', 'slot_type', 'eq', slotbooking::SLOT_TYPE_SESSION);
             $elements[] = $element;
 
             $element = $mform->addElement(
@@ -164,7 +165,7 @@ class dates {
             );
             $mform->hideIf('multipledayofweektimestringshint', 'selflearningcourse', 'eq', 1);
             $mform->hideIf('multipledayofweektimestringshint', 'optiontype', 'eq', MOD_BOOKING_OPTIONTYPE_SLOTBOOKING);
-            $mform->hideIf('multipledayofweektimestringshint', 'slot_type', 'eq', 'session');
+            $mform->hideIf('multipledayofweektimestringshint', 'slot_type', 'eq', slotbooking::SLOT_TYPE_SESSION);
             $elements[] = $element;
 
             // Button to attach JavaScript to reload the form.
@@ -177,7 +178,7 @@ class dates {
             );
             $mform->hideIf('addoptiondateseries', 'selflearningcourse', 'eq', 1);
             $mform->hideIf('addoptiondateseries', 'optiontype', 'eq', MOD_BOOKING_OPTIONTYPE_SLOTBOOKING);
-            $mform->hideIf('addoptiondateseries', 'slot_type', 'eq', 'session');
+            $mform->hideIf('addoptiondateseries', 'slot_type', 'eq', slotbooking::SLOT_TYPE_SESSION);
         }
 
         $datescounter = $defaultvalues["datescounter"] ?? 0;
@@ -199,7 +200,7 @@ class dates {
             '<div class="alert alert-warning">' . get_string('slotbookingdateswarning', 'mod_booking') . '</div>'
         );
         $mform->hideIf('slotbookingdateswarning', 'optiontype', 'neq', MOD_BOOKING_OPTIONTYPE_SLOTBOOKING);
-        $mform->hideIf('slotbookingdateswarning', 'slot_type', 'eq', 'session');
+        $mform->hideIf('slotbookingdateswarning', 'slot_type', 'eq', slotbooking::SLOT_TYPE_SESSION);
 
         $now = time();
         $nextfullhour = strtotime(date('Y-m-d H:00:00', $now)) + 3600;
@@ -332,13 +333,15 @@ class dates {
         } else if (!empty($defaultvalues->id)) {
             $settings = singleton_service::get_instance_of_booking_option_settings($defaultvalues->id);
             $currentoptiontype = (int)($defaultvalues->optiontype ?? $settings->type ?? MOD_BOOKING_OPTIONTYPE_DEFAULT);
-            $currentslottype = (string)($defaultvalues->slot_type ?? $settings->slotconfig->slot_type ?? 'fixed');
+            $currentslottype = (string)($defaultvalues->slot_type
+                ?? $settings->slotconfig->slot_type
+                ?? slotbooking::SLOT_TYPE_FIXED);
             // Make sure, no sessions are created for self-learning courses and slot-booking options.
             if (
                 empty($settings->selflearningcourse)
                 && (
                     $currentoptiontype !== MOD_BOOKING_OPTIONTYPE_SLOTBOOKING
-                    || $currentslottype === 'session'
+                    || $currentslottype === slotbooking::SLOT_TYPE_SESSION
                 )
                 && !isset($defaultvalues->coursestarttime_1)
             ) {
