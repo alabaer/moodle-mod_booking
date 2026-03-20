@@ -2728,6 +2728,14 @@ class booking_option {
                     if (!empty($userdata->completed)) {
                         return false;
                     }
+                } else {
+                    throw new moodle_exception(
+                        'errorloadinguserdata',
+                        'booking',
+                        '',
+                        null,
+                        "No booking answer found for timebooked: $timebooked, userid: $userid, optionid: $optionid"
+                    );
                 }
             } catch (Throwable $e) {
                 throw new moodle_exception(
