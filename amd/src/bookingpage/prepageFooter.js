@@ -35,6 +35,100 @@ const SELECTORS = {
 var footerbuttonconfig = {};
 
 /**
+ * Trigger a Bootstrap-like custom event.
+ *
+ * @param {HTMLElement} element
+ * @param {string} eventName
+ */
+function dispatchBootstrapEvent(element, eventName) {
+    try {
+        const event = new CustomEvent(eventName, {bubbles: true, cancelable: true});
+        element.dispatchEvent(event);
+    } catch (e) {
+        // If CustomEvent is not supported (ancient browsers), ignore.
+    }
+}
+
+/**
+ * Hide a modal using the Bootstrap 5 API when available.
+ *
+ * @param {HTMLElement} modalEl
+ * @returns {boolean}
+ */
+function hideBootstrap5Modal(modalEl) {
+    const ModalCtor = window.bootstrap?.Modal;
+    if (!ModalCtor) {
+        return false;
+    }
+
+    let modalInstance = null;
+    if (typeof ModalCtor.getOrCreateInstance === 'function') {
+        modalInstance = ModalCtor.getOrCreateInstance(modalEl);
+    } else if (typeof ModalCtor.getInstance === 'function') {
+        modalInstance = ModalCtor.getInstance(modalEl);
+    }
+
+    if (!modalInstance || typeof modalInstance.hide !== 'function') {
+        return false;
+    }
+
+    modalInstance.hide();
+    return true;
+}
+
+/**
+ * Hide a collapse using the Bootstrap 5 API when available.
+ *
+ * @param {HTMLElement} inlineEl
+ * @returns {boolean}
+ */
+function hideBootstrap5Collapse(inlineEl) {
+    const CollapseCtor = window.bootstrap?.Collapse;
+    if (!CollapseCtor) {
+        return false;
+    }
+
+    let collapseInstance = null;
+    if (typeof CollapseCtor.getOrCreateInstance === 'function') {
+        collapseInstance = CollapseCtor.getOrCreateInstance(inlineEl, {toggle: false});
+    } else if (typeof CollapseCtor.getInstance === 'function') {
+        collapseInstance = CollapseCtor.getInstance(inlineEl);
+        if (!collapseInstance) {
+            collapseInstance = new CollapseCtor(inlineEl, {toggle: false});
+        }
+    }
+
+    if (!collapseInstance || typeof collapseInstance.hide !== 'function') {
+        return false;
+    }
+
+    collapseInstance.hide();
+    return true;
+}
+
+/**
+ * Sync collapse trigger state after an inline section is hidden.
+ *
+ * @param {HTMLElement} inlineEl
+ */
+function updateCollapseControls(inlineEl) {
+    if (!inlineEl?.id) {
+        return;
+    }
+
+    const selector = [
+        '[data-bs-target="#' + inlineEl.id + '"]',
+        '[data-target="#' + inlineEl.id + '"]',
+        'a[href="#' + inlineEl.id + '"]',
+    ].join(', ');
+
+    document.querySelectorAll(selector).forEach(control => {
+        control.classList.add('collapsed');
+        control.setAttribute('aria-expanded', 'false');
+    });
+}
+
+/**
  * Extract option id from nearest modal/inline prepage container.
  * @param {HTMLElement} element
  * @returns {integer|null}
@@ -84,6 +178,8 @@ function runShoppingCartPreActions(shoppingcartisinstalled) {
                     cart.reinit();
                 }
             }
+
+            return null;
         })
         .catch(() => {
             // eslint-disable-next-line no-console
@@ -121,6 +217,7 @@ function registerDelegatedFooterListeners() {
         }
 
         if (element.classList.contains('hidden') || element.dataset.blocked === 'true') {
+            event.preventDefault();
             return;
         }
 
@@ -203,17 +300,6 @@ export function closeModal(optionid, reloadTables = true) {
 
     modalEls.forEach(modalEl => {
         try {
-            const modalCtor = window.bootstrap?.Modal;
-
-            if (!modalCtor || typeof modalCtor.getOrCreateInstance !== 'function') {
-                hideModalFallback(modalEl);
-                if (reloadTables) {
-                    reloadAllTables();
-                }
-                return;
-            }
-
-            const modalInstance = modalCtor.getOrCreateInstance(modalEl);
             const onHidden = () => {
                 if (reloadTables) {
                     reloadAllTables();
@@ -222,11 +308,11 @@ export function closeModal(optionid, reloadTables = true) {
 
             modalEl.addEventListener('hidden.bs.modal', onHidden, {once: true});
 
-            // If modal is currently visible, hide via BS5 API.
             if (modalEl.classList.contains('show')) {
-                modalInstance.hide();
+                if (!hideBootstrap5Modal(modalEl)) {
+                    hideModalFallback(modalEl);
+                }
             } else {
-                // Already hidden; mimic completion callback behavior.
                 onHidden();
             }
         } catch (err) {
@@ -251,6 +337,8 @@ export function hideModalFallback(modalEl) {
         return;
     }
 
+    dispatchBootstrapEvent(modalEl, 'hide.bs.modal');
+
     // Remove modal "visible" styling.
     modalEl.classList.remove('show');
     modalEl.style.display = 'none';
@@ -271,14 +359,29 @@ export function hideModalFallback(modalEl) {
         }
     });
 
-    // Dispatch events similar to Bootstrap so other code will react.
-    // Bootstrap uses CustomEvent with namespaced names; we emulate them.
-    try {
-        const hiddenEvent = new CustomEvent('hidden.bs.modal', {bubbles: true, cancelable: true});
-        modalEl.dispatchEvent(hiddenEvent);
-    } catch (e) {
-        // If CustomEvent is not supported (ancient browsers), ignore.
+    dispatchBootstrapEvent(modalEl, 'hidden.bs.modal');
+}
+
+/**
+ * DOM fallback to hide an inline collapse element.
+ *
+ * @param {HTMLElement} inlineEl
+ */
+function hideCollapseFallback(inlineEl) {
+    if (!inlineEl) {
+        return;
     }
+
+    dispatchBootstrapEvent(inlineEl, 'hide.bs.collapse');
+
+    inlineEl.classList.remove('show');
+    inlineEl.classList.remove('collapsing');
+    inlineEl.classList.add('collapse');
+    inlineEl.style.removeProperty('height');
+    inlineEl.setAttribute('aria-expanded', 'false');
+    updateCollapseControls(inlineEl);
+
+    dispatchBootstrapEvent(inlineEl, 'hidden.bs.collapse');
 }
 
 /**
@@ -292,53 +395,29 @@ export function closeInline(optionid, reloadTables = true) {
     const inlineEls = Array.from(document.querySelectorAll(inlineSelectorAll));
 
     inlineEls.forEach(inlineEl => {
-        const onShown = (e) => {
-            inlineEl.removeEventListener('shown.bs.collapse', onShown);
-            // eslint-disable-next-line no-console
-            console.log('collapse hide after shown', e);
-
-            try {
-                let collapseInstance = window.bootstrap?.Collapse.getInstance(inlineEl) ?? null;
-                if (!collapseInstance && typeof window.bootstrap !== 'undefined') {
-                    collapseInstance = new window.bootstrap.Collapse(inlineEl, { toggle: false });
-                }
-                if (collapseInstance) {
-                    // toggle will hide it if shown
-                    collapseInstance.toggle();
-                } else {
-                    // fallback toggle: toggle class 'show'
-                    inlineEl.classList.toggle('show');
-                }
-            } catch (err) {
-                // eslint-disable-next-line no-console
-                console.warn('Error toggling bootstrap collapse instance', err);
-            }
-
-            if (reloadTables) {
-                reloadAllTables();
-            }
-        };
-
-        inlineEl.addEventListener('shown.bs.collapse', onShown);
-
-        // Now trigger hide/toggle immediately as well.
         try {
-            let collapseInstance = window.bootstrap?.Collapse.getInstance(inlineEl) ?? null;
-            if (!collapseInstance && typeof window.bootstrap !== 'undefined') {
-                collapseInstance = new window.bootstrap.Collapse(inlineEl, { toggle: false });
-            }
-            if (collapseInstance) {
-                collapseInstance.toggle();
+            const onHidden = () => {
+                if (reloadTables) {
+                    reloadAllTables();
+                }
+            };
+
+            inlineEl.addEventListener('hidden.bs.collapse', onHidden, {once: true});
+
+            if (inlineEl.classList.contains('show')) {
+                if (!hideBootstrap5Collapse(inlineEl)) {
+                    hideCollapseFallback(inlineEl);
+                }
             } else {
-                inlineEl.classList.toggle('show');
+                onHidden();
             }
         } catch (err) {
             // eslint-disable-next-line no-console
-            console.warn('Error toggling bootstrap collapse instance (immediate)', err);
-        }
-
-        if (reloadTables) {
-            reloadAllTables();
+            console.warn('Error hiding bootstrap collapse instance', err);
+            hideCollapseFallback(inlineEl);
+            if (reloadTables) {
+                reloadAllTables();
+            }
         }
     });
 }

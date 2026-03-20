@@ -108,10 +108,12 @@ export async function init() {
 
         continuebutton.dataset.blocked = true;
 
-        continuebutton.addEventListener('click', () => {
+        continuebutton.addEventListener('click', e => {
 
             if (continuebutton.dataset.blocked == 'true') {
-
+                e.preventDefault();
+                // eslint-disable-next-line no-console
+                console.log('Continue button click blocked because form is not validated yet.');
                 dynamicForm.submitFormAjax();
             }
         });
