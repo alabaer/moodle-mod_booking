@@ -119,6 +119,67 @@ const getInlinePrepageConfig = (optionid, userid = 0) => {
     return inlineprepageconfig[optionid];
 };
 
+/**
+ * Function to check visibility of element.
+ * @param {*} el
+ * @returns {boolean}
+ */
+function isHidden(el) {
+    var style = window.getComputedStyle(el);
+    return ((style.display === 'none') || (style.visibility === 'hidden'));
+}
+
+/**
+ * React on visibility change. Bootstrap 4 compatibility.
+ * @param {integer} optionid
+ * @param {integer} userid
+ * @param {string} uniquid
+ * @param {integer} totalnumberofpages
+ * @param {function} callback
+ */
+function respondToVisibility(optionid, userid, uniquid, totalnumberofpages, callback) {
+
+    let elements = document.querySelectorAll("[id^=" + SELECTORS.MODALID + optionid + "_" + uniquid + "]");
+
+    elements.forEach(element => {
+
+        if (!element || element.dataset.initialized == 'true') {
+            return;
+        }
+
+        element.dataset.initialized = true;
+
+        var observer = new MutationObserver(function() {
+
+            if (!isHidden(element)) {
+
+                // Because of the modal animation, "isHIdden" is also true on hiding modal.
+                if (element.classList.contains('show')) {
+
+                    // Todo: Make sure it's not triggered on close.
+                    callback(optionid, userid, uniquid, totalnumberofpages);
+                }
+            }
+        });
+
+        // We look if we find a hidden parent. If not, we load right away.
+        while (element !== null) {
+            if (!isHidden(element)) {
+                element = element.parentElement;
+            } else {
+                if (element.dataset.observed) {
+                    return;
+                }
+
+                observer.observe(element, {attributes: true});
+                element.dataset.observed = true;
+                return;
+            }
+        }
+        callback(optionid, userid, uniquid, totalnumberofpages);
+    });
+}
+
 export var SELECTORS = {
     MODALID: 'sbPrePageModal_',
     INLINEID: 'sbPrePageInline_',
@@ -363,6 +424,19 @@ export function bookit(itemid, area, userid, data) {
 }
 
 /**
+ * Detects Bootstrap version being used.
+ * @returns {number} 4 for Bootstrap 4, 5 for Bootstrap 5
+ */
+const detectBootstrapVersion = () => {
+    // Bootstrap 5 uses window.bootstrap namespace
+    if (typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
+        return 5;
+    }
+    // Default to Bootstrap 4 if we can't confirm Bootstrap 5
+    return 4;
+};
+
+/**
  * Gets called from mustache template.
  * @param {integer} optionid
  * @param {integer} userid
@@ -374,11 +448,40 @@ export const initprepagemodal = (optionid, userid, totalnumberofpages, uniquid) 
     // eslint-disable-next-line no-console
     console.log('initprepagemodal', optionid, userid, totalnumberofpages, uniquid);
 
-    registerPrepageModalDelegatedListener();
+    if (!optionid || !uniquid || !totalnumberofpages) {
 
-    if (optionid && totalnumberofpages) {
-        currentbookitpage[optionid] = 0;
-        totalbookitpages[optionid] = totalnumberofpages;
+        const elements = document.querySelectorAll("[id^=" + SELECTORS.MODALID);
+
+        elements.forEach(element => {
+
+            if (element.querySelector('[data-action="bookondetail"]')) {
+                // eslint-disable-next-line no-console
+                console.log('bookondetail abort');
+                return;
+            }
+
+            optionid = element.dataset.optionid;
+            uniquid = element.dataset.uniquid;
+            userid = element.dataset.userid;
+            totalnumberofpages = element.dataset.pages;
+            if (optionid && uniquid) {
+                initprepagemodal(optionid, userid, totalnumberofpages, uniquid);
+            }
+        });
+        return;
+    }
+
+    currentbookitpage[optionid] = 0;
+    totalbookitpages[optionid] = totalnumberofpages;
+
+    const bootstrapVersion = detectBootstrapVersion();
+
+    // Bootstrap 5: Use event listener approach
+    if (bootstrapVersion === 5) {
+        registerPrepageModalDelegatedListener();
+    } else {
+        // Bootstrap 4: Use MutationObserver approach
+        respondToVisibility(optionid, userid, uniquid, totalnumberofpages, loadPreBookingPage);
     }
 };
 
@@ -467,16 +570,6 @@ export const initprepageinline = (optionid, userid, totalnumberofpages, uniquid)
         });
     }
 };
-
-/**
- * Function to check visibility of element.
- * @param {*} el
- * @returns {boolean}
- */
-function isHidden(el) {
-    var style = window.getComputedStyle(el);
-    return ((style.display === 'none') || (style.visibility === 'hidden'));
-}
 
 /**
  * Loads the (next) pre booking page.
