@@ -260,6 +260,124 @@ class fileparser {
     }
 
     /**
+     * Parses and validates CSV content in preview (dry-run) mode.
+     *
+     * Returns structured data showing which rows would be imported and which would be skipped.
+     *
+     * In preview mode, the real callback is executed in a delegated transaction that is
+     * always rolled back to prevent any DB changes.
+     *
+     * @param mixed $content raw CSV content
+     * @return array
+     */
+    public function preview_csv_data($content): array {
+        $iid = csv_import_reader::get_new_iid($this->pluginname);
+        if (empty($iid)) {
+            $this->errors[] = "Could not get new import id.";
+        }
+        $cir = new csv_import_reader($iid, $this->pluginname);
+
+        $readcount = $cir->load_csv_content($content, $this->encoding, $this->delimiter, null, $this->enclosure);
+
+        if (empty($readcount)) {
+            $this->errors[] = $cir->get_error();
+            return $this->exit_preview_records($cir, [], []);
+        }
+
+        $fieldnames = $cir->get_columns();
+        if ($fieldnames == false) {
+            $this->errors[] = $cir->get_error();
+            $this->errors[] = get_string('checkdelimiteroremptycontent', 'mod_booking');
+            return $this->exit_preview_records($cir, [], []);
+        }
+        $this->fieldnames = $fieldnames;
+
+        if (!empty($this->validate_fieldnames())) {
+            $this->errors[] = $this->validate_fieldnames();
+            return $this->exit_preview_records($cir, [], []);
+        }
+
+        $validrows = [];
+        $skippedrows = [];
+
+        $cir->init();
+        while ($line = $cir->next()) {
+            $csvrecord = array_combine($fieldnames, $line);
+
+            // Add static values from settings.
+            foreach ($this->settings->columnswithvalues as $key => $value) {
+                $csvrecord[$key] = $value;
+            }
+
+            // Only keep original CSV columns for display (exclude server-injected values).
+            $displayrecord = array_intersect_key($csvrecord, array_flip($fieldnames));
+
+            $errorsbefore = count($this->csverrors);
+            if (!$this->validate_data($csvrecord, $line)) {
+                $reason = '';
+                if (count($this->csverrors) > $errorsbefore) {
+                    $reason = strip_tags(implode(' ', array_slice($this->csverrors, $errorsbefore)));
+                }
+                $skippedrows[] = ['data' => $displayrecord, 'reason' => $reason];
+                continue;
+            }
+
+            $data = [];
+            foreach ($csvrecord as $columnname => $value) {
+                $data[$columnname] = $value;
+            }
+
+            // Add the dateformat from settings to data so it can be used in date parsing.
+            if (!empty($this->settings->dateformat)) {
+                $data['dateparseformat'] = $this->settings->dateformat;
+            }
+
+            $callbackresponse = $this->execute_callback($data, true);
+            if ($callbackresponse['success'] == 0) {
+                $skippedrows[] = [
+                    'data' => $displayrecord,
+                    'reason' => $callbackresponse['message'],
+                ];
+            } else {
+                $validrows[] = $displayrecord;
+            }
+        }
+
+        return $this->exit_preview_records($cir, $validrows, $skippedrows);
+    }
+
+    /**
+     * Build and return the preview result array.
+     *
+     * @param object $cir csv_import_reader instance
+     * @param array $validrows rows that passed validation
+     * @param array $skippedrows rows that failed validation, each with 'data' and 'reason'
+     * @return array
+     */
+    private function exit_preview_records(object $cir, array $validrows, array $skippedrows): array {
+        $cir->cleanup(true);
+        $cir->close();
+
+        $result = [
+            'preview' => true,
+            'columns' => $this->fieldnames,
+            'validrows' => $validrows,
+            'skippedrows' => $skippedrows,
+            'success' => empty($this->errors) ? 1 : 0,
+            'errors' => [],
+        ];
+
+        if ($this->errors !== []) {
+            $result['errors']['generalerrors'] = $this->errors;
+        }
+        if ($this->csverrors !== []) {
+            $result['errors']['lineerrors'] = $this->csverrors;
+        }
+
+        return $result;
+    }
+
+    /**
      * Exit and return
      *
      * @param object $cir
@@ -280,16 +398,28 @@ class fileparser {
      * Executes callback
      *
      * @param array $data
+     * @param bool $rollbackaftercallback true to always rollback DB changes after callback
      *
      * @return array
      */
-    private function execute_callback(array $data) {
+    private function execute_callback(array $data, bool $rollbackaftercallback = false) {
+        global $DB;
 
         if (!$callback = $this->settings->callback) {
             throw new moodle_exception('callbackfunctionnotdefined', 'mod_booking');
         };
+
+        $rollbackmarker = '__mod_booking_preview_rollback__';
+
         try {
-            $optionid = $callback($data);
+            if ($rollbackaftercallback) {
+                $transaction = $DB->start_delegated_transaction();
+                $callback($data);
+                // Force rollback after a successful callback in preview mode.
+                $transaction->rollback(new Exception($rollbackmarker));
+            } else {
+                $callback($data);
+            }
 
             $result = ['success' => 1, 'message' => ''];
             if ($result['success'] != 1 && $result['success'] != 2) {
@@ -304,6 +434,12 @@ class fileparser {
                 ];
             }
         } catch (Exception $e) {
+            if ($rollbackaftercallback && $e->getMessage() === $rollbackmarker) {
+                return [
+                    'success' => 1,
+                    'message' => '',
+                ];
+            }
             return [
                 'success' => 0,
                 'message' => $e->getMessage(),

@@ -1,0 +1,81 @@
+{{!
+    Template for the CSV import preview panel.
+
+    Renders two tables: one for rows that will be imported and one for rows that will be skipped.
+
+    @package    mod_booking
+    @copyright  2024 Wunderbyte GmbH
+    @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+
+    Context variables:
+    * columns       - array of {name} column header objects
+    * validcount    - integer count of valid rows
+    * skippedcount  - integer count of skipped rows
+    * validrows     - array of {cells: [{value}]} objects
+    * skippedrows   - array of {cells: [{value}], reason} objects
+    * hasvalidrows  - boolean, true when validrows is non-empty
+    * hasskippedrows - boolean, true when skippedrows is non-empty
+}}
+<div class="csv-import-preview mt-4">
+
+    <h4>{{#str}} importpreviewtitle, mod_booking {{/str}}</h4>
+
+    {{#hasvalidrows}}
+    <div class="mb-4">
+        <h5 class="text-success">
+            {{#str}} importpreviewvalid, mod_booking {{/str}} ({{validcount}})
+        </h5>
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered table-hover">
+                <thead class="thead-light">
+                    <tr>
+                        {{#columns}}
+                        <th scope="col">{{name}}</th>
+                        {{/columns}}
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#validrows}}
+                    <tr class="table-success">
+                        {{#cells}}
+                        <td>{{value}}</td>
+                        {{/cells}}
+                    </tr>
+                    {{/validrows}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{/hasvalidrows}}
+
+    {{#hasskippedrows}}
+    <div class="mb-4">
+        <h5 class="text-danger">
+            {{#str}} importpreviewskipped, mod_booking {{/str}} ({{skippedcount}})
+        </h5>
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered table-hover">
+                <thead class="thead-light">
+                    <tr>
+                        {{#columns}}
+                        <th scope="col">{{name}}</th>
+                        {{/columns}}
+                        <th scope="col">{{#str}} importpreviewreason, mod_booking {{/str}}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#skippedrows}}
+                    <tr class="table-danger">
+                        {{#cells}}
+                        <td>{{value}}</td>
+                        {{/cells}}
+                        <td><em>{{reason}}</em></td>
+                    </tr>
+                    {{/skippedrows}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{/hasskippedrows}}
+
+</div>
