@@ -409,10 +409,13 @@ class fileparser {
             throw new moodle_exception('callbackfunctionnotdefined', 'mod_booking');
         };
 
-        $rollbackmarker = '__mod_booking_preview_rollback__';
+        $rollbackmarker = '__mod_booking_import_preview_rollback__';
+        $observerstate = null;
 
         try {
             if ($rollbackaftercallback) {
+                // Deactivate observers for Preview.
+                $observerstate = $this->suspend_event_observers();
                 $transaction = $DB->start_delegated_transaction();
                 $callback($data);
                 // Force rollback after a successful callback in preview mode.
@@ -444,7 +447,65 @@ class fileparser {
                 'success' => 0,
                 'message' => $e->getMessage(),
             ];
+        } finally {
+            if ($observerstate !== null) {
+                $this->restore_event_observers($observerstate);
+            }
         }
+    }
+
+    /**
+     * Temporarily suspend event observers for preview callback execution.
+     *
+     * @return array observer manager state to be restored
+     */
+    private function suspend_event_observers(): array {
+        $managerreflection = new \ReflectionClass(\core\event\manager::class);
+
+        $allobserversproperty = $managerreflection->getProperty('allobservers');
+        $allobserversproperty->setAccessible(true);
+
+        $bufferproperty = $managerreflection->getProperty('buffer');
+        $bufferproperty->setAccessible(true);
+
+        $extbufferproperty = $managerreflection->getProperty('extbuffer');
+        $extbufferproperty->setAccessible(true);
+
+        $state = [
+            'allobservers' => $allobserversproperty->getValue(),
+            'buffer' => $bufferproperty->getValue(),
+            'extbuffer' => $extbufferproperty->getValue(),
+        ];
+
+        // Keep callback logic execution, but prevent observer side effects during preview.
+        $allobserversproperty->setValue([]);
+        $bufferproperty->setValue([]);
+        $extbufferproperty->setValue([]);
+
+        return $state;
+    }
+
+    /**
+     * Restore event observer manager state after preview callback execution.
+     *
+     * @param array $state state returned by suspend_event_observers
+     * @return void
+     */
+    private function restore_event_observers(array $state): void {
+        $managerreflection = new \ReflectionClass(\core\event\manager::class);
+
+        $allobserversproperty = $managerreflection->getProperty('allobservers');
+        $allobserversproperty->setAccessible(true);
+
+        $bufferproperty = $managerreflection->getProperty('buffer');
+        $bufferproperty->setAccessible(true);
+
+        $extbufferproperty = $managerreflection->getProperty('extbuffer');
+        $extbufferproperty->setAccessible(true);
+
+        $allobserversproperty->setValue($state['allobservers']);
+        $bufferproperty->setValue($state['buffer']);
+        $extbufferproperty->setValue($state['extbuffer']);
     }
 
     /**
