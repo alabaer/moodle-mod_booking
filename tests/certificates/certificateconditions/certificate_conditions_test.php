@@ -452,7 +452,14 @@ final class certificate_conditions_test extends advanced_testcase {
         // We complete the option and should have no additional certificate.
         $this->assertEquals(1, $DB->count_records('tool_certificate_issues', ['userid' => $this->users['student1']->id]));
     }
-
+    /**
+     * Test with setting to manual certificate trigger.
+     *
+     * @covers \mod_booking\local\certificate_conditions\conditions\taggedoptions
+     * @covers \mod_booking\local\certificateclass::issue_certificate
+     * @covers \mod_booking\local\certificateclass::all_required_options_fulfilled
+     * @covers \mod_booking\local\certificate_conditions\actions\createcertificate
+     */
     public function test_only_manual_certificate_trigger() {
         global $DB;
         $this->base_scenario();

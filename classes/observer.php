@@ -362,7 +362,7 @@ class mod_booking_observer {
         );
 
         if (empty(get_config('booking', 'certificatemanualtrigger'))) {
-        // Evaluate and execute certificate conditions for the completed option.
+            // Evaluate and execute certificate conditions for the completed option.
             certificate_conditions::evaluate_certificate_conditions(
                 $event,
                 $selecteduserid,
