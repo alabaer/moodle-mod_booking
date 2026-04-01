@@ -843,6 +843,8 @@ $string['certificateissueddesc'] = 'User with ID {$a->userid} issued a certifica
 $string['certificatemodalheader'] = 'Certificates of {$a}';
 $string['certificatenotactive'] = 'Certificate not active';
 $string['certificatenotapplyforusers'] = 'No certificates were generated.';
+$string['certificatemanualtrigger'] = 'Manual certificate trigger only';
+$string['certificatemanualtrigger_desc'] = 'If enabled, certificates are not created automatically and can only be triggered manually.';
 $string['certificateon'] = 'Activate certificate creation <span class="badge bg-success text-light"><i class="fa fa-cogs" aria-hidden="true"></i> PRO</span>';
 $string['certificateon_desc'] = 'Enable this setting if you want to issue certificates for the completion of booking options.';
 $string['certificateoptions'] = 'Certificate options';

@@ -827,6 +827,8 @@ $string['certificateissueddesc'] = 'Nutzer:in mit ID {$a->userid} hat Zertifikat
 $string['certificatemodalheader'] = 'Zertifikate von {$a}';
 $string['certificatenotactive'] = 'Zertifikat nicht aktiviert';
 $string['certificatenotapplyforusers'] = 'Es wurden keine Zertifkate erstellt.';
+$string['certificatemanualtrigger'] = 'Zertifikate nur manuell auslösen';
+$string['certificatemanualtrigger_desc'] = 'Wenn diese Einstellung aktiviert ist, werden Zertifikate nicht automatisch erstellt und können nur manuell ausgelöst werden.';
 $string['certificateon'] = 'Zertifikatserstellung aktivieren <span class="badge bg-success text-light"><i class="fa fa-cogs" aria-hidden="true"></i> PRO</span>';
 $string['certificateon_desc'] = 'Aktivieren Sie diese Einstellung, wenn sie Zertifikate für den Abschluss von Buchungsoptionen ausstellen möchten.';
 $string['certificateoptions'] = 'Zertifikatsoptionen';
