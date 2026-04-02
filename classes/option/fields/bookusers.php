@@ -24,6 +24,8 @@
 
 namespace mod_booking\option\fields;
 
+use core\exception\moodle_exception;
+use DateTime;
 use mod_booking\option\fields_info;
 use mod_booking\option\field_base;
 use mod_booking\singleton_service;
@@ -138,14 +140,32 @@ class bookusers extends field_base {
         } else if (!empty($formdata->useremail)) {
             $usersids = teachers_handler::get_user_ids_from_string($formdata->useremail);
         }
-
+        if (empty($usersids)) {
+            throw new moodle_exception(
+                'nousersfound',
+                'mod_booking',
+                '',
+                null,
+                'No users found with the given username or email.'
+            );
+        }
         if (!empty($usersids)) {
             $bookingoption = singleton_service::get_instance_of_booking_option($formdata->cmid, $formdata->id);
             foreach ($usersids as $userid) {
                 $user = singleton_service::get_instance_of_user($userid);
                 $updateansweronimport = false;
                 if (!empty($formdata->timebooked)) {
-                    $parsed = strtotime($formdata->timebooked);
+                    $date = DateTime::createFromFormat($formdata->dateparseformat, $formdata->timebooked);
+                    if (!$date) {
+                        throw new moodle_exception(
+                            'wrongdateformat',
+                            'mod_booking',
+                            '',
+                            null,
+                            'Wrong date Format you chose:' . $formdata->dateparseformat . " for the value: " . $formdata->timebooked
+                        );
+                    }
+                    $parsed = $date->getTimestamp();
                     $timebooked = $parsed !== false ? $parsed : null;
                 } else {
                     $timebooked = 0;
@@ -156,6 +176,15 @@ class bookusers extends field_base {
                 $bookingoption->user_submit_response($user, 0, 0, 0, MOD_BOOKING_VERIFIED, '', $timebooked, $updateansweronimport);
 
                 if (!empty($formdata->completed)) {
+                    if (!is_number($formdata->completed) || $formdata->completed < 0 || $formdata->completed > 1) {
+                        throw new moodle_exception(
+                            'wrongcompletedvalue',
+                            'mod_booking',
+                            '',
+                            null,
+                            'Wrong completed value: ' . $formdata->completed . '. It should be either 0 or 1.'
+                        );
+                    }
                     $bookingoption->toggle_user_completion($userid, $timebooked, $updateansweronimport);
                 }
             }
