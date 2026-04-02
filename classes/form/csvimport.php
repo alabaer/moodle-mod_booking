@@ -105,9 +105,16 @@ class csvimport extends dynamic_form {
         $mform->addHelpButton('dateparseformat', 'dateparseformat', 'mod_booking');
 
         $buttonarray = [];
-        $buttonarray[] = $mform->createElement('submit', 'submitbutton', get_string('submit'));
         if (isset($data->previewcallback)) {
+            $buttonarray[] = $mform->createElement(
+                'submit',
+                'submitbutton',
+                get_string('importuploaddatabase', 'mod_booking'),
+                ['class' => 'd-none']
+            );
             $buttonarray[] = $mform->createElement('submit', 'previewbutton', get_string('importpreview', 'mod_booking'));
+        } else {
+            $buttonarray[] = $mform->createElement('submit', 'submitbutton', get_string('submit'));
         }
         $buttonarray[] = $mform->createElement('cancel');
         $mform->addGroup($buttonarray, 'buttonar', '', ' ', false);

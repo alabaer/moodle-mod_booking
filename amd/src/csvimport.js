@@ -27,23 +27,54 @@ import Templates from 'core/templates';
 const SELECTORS = {
     FORMCONTAINER: '#mbo_csv_import_form',
     PREVIEWCONTAINER: '#mbo_csv_import_preview',
+    PREVIEWACTIONS: '#mbo_csv_preview_actions',
     PREVIEWMODE: '[name="previewmode"]',
     PREVIEWBUTTON: '[name="previewbutton"]',
     SUBMITBUTTON: '[name="submitbutton"]',
 };
 
+const DEFAULTLABELS = {
+    back: 'Back',
+    upload: 'Upload to database',
+};
+
+/**
+ * Get translated labels for preview actions.
+ *
+ * @returns {Promise<object>}
+ */
+const getPreviewActionLabels = async() => {
+    try {
+        const [back, upload] = await Promise.all([
+            getString('back', 'moodle'),
+            getString('importuploaddatabase', 'mod_booking'),
+        ]);
+        return {back, upload};
+    } catch (err) {
+        return DEFAULTLABELS;
+    }
+};
+
 /**
  * Render post-preview actions so users can either go back or submit directly.
  *
- * @param {HTMLElement} formContainer
- * @param {HTMLElement} previewContainer
+ * @param {object} options
+ * @param {HTMLElement} options.formContainer
+ * @param {HTMLElement} options.previewContainer
+ * @param {object} options.labels
+ * @param {Function} options.onUpload
+ * @param {Function} options.onBack
  */
-const renderPreviewActions = (formContainer, previewContainer) => {
+const renderPreviewActions = ({formContainer, previewContainer, labels, onUpload, onBack}) => {
+    const currentActions = previewContainer.querySelector(SELECTORS.PREVIEWACTIONS);
+    if (currentActions) {
+        currentActions.remove();
+    }
+
     const submitButton = formContainer.querySelector(SELECTORS.SUBMITBUTTON);
-    const previewButton = formContainer.querySelector(SELECTORS.PREVIEWBUTTON);
 
     if (!submitButton) {
-        return;
+        return null;
     }
 
     const actions = document.createElement('div');
@@ -53,27 +84,75 @@ const renderPreviewActions = (formContainer, previewContainer) => {
     const backButton = document.createElement('button');
     backButton.type = 'button';
     backButton.className = 'btn btn-secondary';
-    backButton.textContent = previewButton ? previewButton.value : 'Back';
+    backButton.textContent = labels.back;
     backButton.addEventListener('click', () => {
-        previewContainer.innerHTML = '';
-        if (previewButton) {
-            previewButton.focus();
-        } else {
-            submitButton.focus();
-        }
+        onBack();
     });
 
     const confirmSubmitButton = document.createElement('button');
     confirmSubmitButton.type = 'button';
     confirmSubmitButton.className = 'btn btn-primary';
-    confirmSubmitButton.textContent = submitButton.value;
+    confirmSubmitButton.textContent = labels.upload;
     confirmSubmitButton.addEventListener('click', () => {
-        submitButton.click();
+        onUpload();
     });
 
     actions.appendChild(backButton);
     actions.appendChild(confirmSubmitButton);
     previewContainer.appendChild(actions);
+
+    return {
+        backButton,
+        confirmSubmitButton,
+    };
+};
+
+/**
+ * Add a "Rows per page" selector (10 / 100 / All) above each preview table.
+ * Hides rows that exceed the chosen limit.  Defaults to showing the first 10.
+ *
+ * @param {HTMLElement} container - The element that contains the rendered preview.
+ */
+const setupTablePagination = (container) => {
+    container.querySelectorAll('table').forEach(table => {
+        const rows = Array.from(table.querySelectorAll('tbody tr'));
+        if (rows.length === 0) {
+            return;
+        }
+        const tableWrapper = table.closest('.table-responsive') || table;
+
+        const applyLimit = (limit) => {
+            rows.forEach((row, i) => {
+                row.classList.toggle('d-none', limit > 0 && i >= limit);
+            });
+        };
+
+        const uid = `mbo-rpp-${Math.random().toString(36).slice(2)}`;
+        const controls = document.createElement('div');
+        controls.className = 'd-flex align-items-center gap-2 mb-2';
+
+        const label = document.createElement('label');
+        label.className = 'mb-0 small';
+        label.textContent = 'Rows per page:';
+        label.htmlFor = uid;
+
+        const select = document.createElement('select');
+        select.id = uid;
+        select.className = 'form-select form-select-sm w-auto';
+        [['10', '10'], ['100', '100'], ['0', 'All']].forEach(([val, text]) => {
+            const option = document.createElement('option');
+            option.value = val;
+            option.textContent = text;
+            select.appendChild(option);
+        });
+
+        select.addEventListener('change', () => applyLimit(parseInt(select.value, 10)));
+        applyLimit(10); // Default: show first 10 rows.
+
+        controls.appendChild(label);
+        controls.appendChild(select);
+        tableWrapper.parentElement.insertBefore(controls, tableWrapper);
+    });
 };
 
 /**
@@ -124,6 +203,43 @@ export const init = () => {
         'mod_booking\\form\\csvimport'
     );
 
+    const state = {
+        uploadInProgress: false,
+        uploadActionButton: null,
+        backActionButton: null,
+    };
+
+    const setFormVisibility = (visible) => {
+        formContainer.classList.toggle('d-none', !visible);
+    };
+
+    const resetUploadActionState = () => {
+        state.uploadInProgress = false;
+        if (state.uploadActionButton) {
+            state.uploadActionButton.disabled = false;
+        }
+        if (state.backActionButton) {
+            state.backActionButton.disabled = false;
+        }
+    };
+
+    const clearPreview = () => {
+        previewContainer.innerHTML = '';
+        setFormVisibility(true);
+        const previewButton = formContainer.querySelector(SELECTORS.PREVIEWBUTTON);
+        const submitButton = formContainer.querySelector(SELECTORS.SUBMITBUTTON);
+
+        if (previewButton) {
+            previewButton.focus();
+        } else if (submitButton) {
+            submitButton.focus();
+        }
+
+        state.uploadActionButton = null;
+        state.backActionButton = null;
+        resetUploadActionState();
+    };
+
     // Use event delegation to set previewmode before the dynamic form serialises the data.
     formContainer.addEventListener('click', (e) => {
         const previewField = formContainer.querySelector(SELECTORS.PREVIEWMODE);
@@ -137,8 +253,19 @@ export const init = () => {
         }
     }, true); // Capture phase so it fires before the form submit handler.
 
+    dynamicForm.addEventListener(dynamicForm.events.SERVER_VALIDATION_ERROR, () => {
+        resetUploadActionState();
+    });
+
+    dynamicForm.addEventListener(dynamicForm.events.CLIENT_VALIDATION_ERROR, () => {
+        resetUploadActionState();
+    });
+
     // If a user imports an element, trigger treatment of input.
     dynamicForm.addEventListener(dynamicForm.events.FORM_SUBMITTED, (e) => {
+        e.preventDefault();
+
+        resetUploadActionState();
 
         const response = e.detail;
 
@@ -157,19 +284,58 @@ export const init = () => {
             }
 
             const templateContext = buildPreviewContext(response);
-            Templates.renderForPromise('mod_booking/importer/csvpreview', templateContext).then(({html, js}) => {
+            const renderPreview = async() => {
+                const {html, js} = await Templates.renderForPromise('mod_booking/importer/csvpreview', templateContext);
                 Templates.replaceNodeContents(previewContainer, html, js);
-                renderPreviewActions(formContainer, previewContainer);
+                setupTablePagination(previewContainer);
+                const labels = await getPreviewActionLabels();
+                const submitButton = formContainer.querySelector(SELECTORS.SUBMITBUTTON);
+                if (!submitButton) {
+                    return;
+                }
+
+                const actionButtons = renderPreviewActions({
+                    formContainer,
+                    previewContainer,
+                    labels,
+                    onBack: () => {
+                        clearPreview();
+                    },
+                    onUpload: () => {
+                        if (state.uploadInProgress) {
+                            return;
+                        }
+
+                        state.uploadInProgress = true;
+                        if (state.uploadActionButton) {
+                            state.uploadActionButton.disabled = true;
+                        }
+                        if (state.backActionButton) {
+                            state.backActionButton.disabled = true;
+                        }
+
+                        submitButton.click();
+                    }
+                });
+
+                if (actionButtons) {
+                    state.backActionButton = actionButtons.backButton;
+                    state.uploadActionButton = actionButtons.confirmSubmitButton;
+                }
+
+                setFormVisibility(false);
                 previewContainer.scrollIntoView({behavior: 'smooth', block: 'start'});
-                return;
-            }).catch(err => {
+            };
+
+            renderPreview().catch(err => {
+                resetUploadActionState();
                 // eslint-disable-next-line no-console
                 console.error(err);
             });
 
         } else {
             // Normal import: clear any previous preview, reload form, show result notifications.
-            previewContainer.innerHTML = '';
+            clearPreview();
 
             const errors = response.errors;
 
@@ -229,6 +395,7 @@ export const init = () => {
     // Cancel button triggers reload of empty form.
     dynamicForm.addEventListener(dynamicForm.events.FORM_CANCELLED, (e) => {
         e.preventDefault();
+        clearPreview();
         dynamicForm.load({});
     });
 

@@ -297,11 +297,17 @@ class bookingoptionsimporter {
                 'type' => PARAM_TEXT,
                 'importinstruction' => "coursestarttime",
             ],
-             [
+            [
                 'name' => 'courseendtime',
                 'mandatory' => false,
                 'type' => PARAM_TEXT,
                 'importinstruction' => "courseendtime",
+            ],
+            [
+                'name' => 'completed',
+                'mandatory' => false,
+                'type' => PARAM_INT,
+                'importinstructions' => "completed",
             ],
         ];
         return $columnssequential;

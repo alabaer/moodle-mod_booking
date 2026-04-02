@@ -135,6 +135,9 @@ class bookusers extends field_base {
     public static function save_data(stdClass &$formdata, stdClass &$option) {
         // Book users here.
         // We can only do username OR useremail, not both.
+        if (empty($formdata->importing)) {
+            return;
+        }
         if (!empty($formdata->username)) {
             $usersids = teachers_handler::get_user_ids_from_string($formdata->username, false);
         } else if (!empty($formdata->useremail)) {
@@ -142,7 +145,7 @@ class bookusers extends field_base {
         }
         if (empty($usersids)) {
             throw new moodle_exception(
-                'nousersfound',
+                'nouserfound',
                 'mod_booking',
                 '',
                 null,
