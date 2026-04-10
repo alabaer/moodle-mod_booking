@@ -164,9 +164,11 @@ const setupTablePagination = (container) => {
 const buildPreviewContext = (response) => {
     const columns = (response.columns || []).map(col => ({name: col}));
     const validrows = (response.validrows || []).map(row => ({
-        cells: (response.columns || []).map(col => ({value: row[col] !== undefined ? row[col] : ''}))
+        linenumber: row.linenumber,
+        cells: (response.columns || []).map(col => ({value: row.data && row.data[col] !== undefined ? row.data[col] : ''}))
     }));
     const skippedrows = (response.skippedrows || []).map(row => ({
+        linenumber: row.linenumber,
         cells: (response.columns || []).map(col => ({
             value: row.data && row.data[col] !== undefined ? row.data[col] : ''
         })),

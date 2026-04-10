@@ -1617,6 +1617,7 @@ $string['importmaxanswers'] = 'Maximale Anzahl von Buchungen pro Buchungsoption'
 $string['importmaxoverbooking'] = 'Maximale Anzahl an Wartelistenplätzen pro Buchungsoption';
 $string['importpartial'] = 'The import was only partially completed. There were problems with following lines and they were not imported: ';
 $string['importpreview'] = 'Save';
+$string['importpreviewlinenumber'] = 'Line';
 $string['importpreviewreason'] = 'Skip reason';
 $string['importpreviewskipped'] = 'Rows to be skipped';
 $string['importpreviewtitle'] = 'Import preview';

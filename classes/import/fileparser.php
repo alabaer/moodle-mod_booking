@@ -299,6 +299,7 @@ class fileparser {
 
         $validrows = [];
         $skippedrows = [];
+        $linenumber = 2; // Line 1 is the header row.
 
         $cir->init();
         while ($line = $cir->next()) {
@@ -318,7 +319,8 @@ class fileparser {
                 if (count($this->csverrors) > $errorsbefore) {
                     $reason = strip_tags(implode(' ', array_slice($this->csverrors, $errorsbefore)));
                 }
-                $skippedrows[] = ['data' => $displayrecord, 'reason' => $reason];
+                $skippedrows[] = ['linenumber' => $linenumber, 'data' => $displayrecord, 'reason' => $reason];
+                $linenumber++;
                 continue;
             }
 
@@ -335,12 +337,14 @@ class fileparser {
             $callbackresponse = $this->execute_callback($data, true);
             if ($callbackresponse['success'] == 0) {
                 $skippedrows[] = [
+                    'linenumber' => $linenumber,
                     'data' => $displayrecord,
                     'reason' => $callbackresponse['message'],
                 ];
             } else {
-                $validrows[] = $displayrecord;
+                $validrows[] = ['linenumber' => $linenumber, 'data' => $displayrecord];
             }
+            $linenumber++;
         }
 
         return $this->exit_preview_records($cir, $validrows, $skippedrows);

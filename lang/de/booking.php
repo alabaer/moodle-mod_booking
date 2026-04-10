@@ -1583,6 +1583,7 @@ $string['importmaxanswers'] = 'Maximale Anzahl von Buchungen pro Buchungsoption'
 $string['importmaxoverbooking'] = 'Maximale Anzahl an Wartelistenplätzen pro Buchungsoption';
 $string['importpartial'] = 'Der CSV-Import wurde nur teilweise durchgeführt. Bei folgenden Zeilen traten Fehler auf und sie wurden nicht importiert: ';
 $string['importpreview'] = 'Speichern';
+$string['importpreviewlinenumber'] = 'Zeile';
 $string['importsuccess'] = 'Import war erfolgreich. Es wurden {$a} Datensatz/Datensätze bearbeitet.';
 $string['importteacheremail'] = 'E-Mail Adressen von Nutzerinnen auf der Plattform, die als LehrerInnen in den Buchungsoptionen hinterlegt werden können. Bei mehreren e-mail Adressen Komma als Trennzeichen verwenden (aufpassen auf "Escape" bei Komma getrennten CSV!)';
 $string['importtext'] = 'Titel einer Buchungsoption (Synonym zu text)';
