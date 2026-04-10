@@ -482,9 +482,9 @@ class fileparser {
         ];
 
         // Keep callback logic execution, but prevent observer side effects during preview.
-        $allobserversproperty->setValue([]);
-        $bufferproperty->setValue([]);
-        $extbufferproperty->setValue([]);
+        $allobserversproperty->setValue(null, []);
+        $bufferproperty->setValue(null, []);
+        $extbufferproperty->setValue(null, []);
 
         return $state;
     }
@@ -507,9 +507,9 @@ class fileparser {
         $extbufferproperty = $managerreflection->getProperty('extbuffer');
         $extbufferproperty->setAccessible(true);
 
-        $allobserversproperty->setValue($state['allobservers']);
-        $bufferproperty->setValue($state['buffer']);
-        $extbufferproperty->setValue($state['extbuffer']);
+        $allobserversproperty->setValue(null, $state['allobservers']);
+        $bufferproperty->setValue(null, $state['buffer']);
+        $extbufferproperty->setValue(null, $state['extbuffer']);
     }
 
     /**
