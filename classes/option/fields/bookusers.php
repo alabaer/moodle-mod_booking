@@ -189,7 +189,16 @@ class bookusers extends field_base {
 
                 try {
                     $user = singleton_service::get_instance_of_user($userid);
-                    $bookingoption->user_submit_response($user, 0, 0, 0, MOD_BOOKING_VERIFIED, '', $timebooked, $updateansweronimport);
+                    $bookingoption->user_submit_response(
+                        $user,
+                        0,
+                        0,
+                        0,
+                        MOD_BOOKING_VERIFIED,
+                        '',
+                        $timebooked,
+                        $updateansweronimport
+                    );
 
                     if (!empty($formdata->completed)) {
                         $bookingoption->toggle_user_completion($userid, $timebooked, $updateansweronimport);
