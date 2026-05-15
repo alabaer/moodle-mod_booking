@@ -30,7 +30,7 @@ $plugin->requires = 2024100700; // Requires this Moodle version. Current: Moodle
 $plugin->release = '9.3.3';
 $plugin->maturity = MATURITY_STABLE;
 $plugin->component = 'mod_booking';
-$plugin->supported = [405, 501];
+$plugin->supported = [405, 502];
 $plugin->dependencies = [
     'local_wunderbyte_table' => 2026042100,
 ];
