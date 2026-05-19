@@ -1824,7 +1824,7 @@ class shortcodes {
             }
         }
         if (!empty($args['sortby'])) {
-            $sortby = clean_param((string)$args['sortby'], PARAM_ALPHANUMEXT);
+            $sortby = implode(",", array_map(fn($a) => clean_param($a, PARAM_ALPHANUMEXT), explode(',', $args['sortby'])));
         }
 
         if (!empty($sortby)) {
