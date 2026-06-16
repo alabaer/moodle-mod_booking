@@ -39,6 +39,7 @@ use local_wunderbyte_table\filters\types\standardfilter;
 use local_wunderbyte_table\local\helper\actforuser;
 use local_wunderbyte_table\wunderbyte_table;
 use mod_booking\booking;
+use mod_booking\customfield\hierarchy_manager;
 use mod_booking\form\dynamicdeputyselect;
 use mod_booking\local\shortcode_filterfield;
 use mod_booking\output\booked_users;
@@ -475,11 +476,7 @@ class shortcodes {
         if (($customfield->type ?? '') !== 'dynamicformat') {
             return [];
         }
-        $manager = '\taskflowadapter_tuines\local\customfield_options_manager';
-        if (!class_exists($manager)) {
-            return [];
-        }
-        return $manager::get_filter_options((int) $customfield->id);
+        return hierarchy_manager::get_filter_options((int) $customfield->id);
     }
 
     /**
