@@ -178,6 +178,20 @@ final class confirmation_test extends booking_advanced_testcase {
         $settings = singleton_service::get_instance_of_booking_option_settings($option->id);
         $boinfo = new bo_info($settings);
 
+        // Guard: the generator must have persisted the workflow flags into the option json.
+        // The trainer workflow only governs options whose json carries these flags; if they
+        // are missing, it refuses every non-admin approver and the confirmation assertions
+        // below become misleading. The message dumps the json for CI diagnosis.
+        $this->assertNotEmpty(
+            $settings->jsonobject->waitforconfirmation ?? null,
+            'Option json lacks waitforconfirmation: ' . json_encode($settings->jsonobject)
+        );
+        $this->assertEquals(
+            $confirmationtrainerenabled,
+            (int) ($settings->jsonobject->confirmationtrainerenabled ?? -1),
+            'Option json lacks confirmationtrainerenabled: ' . json_encode($settings->jsonobject)
+        );
+
         // Create the 'approver' role in system context.
         $approverroleid = create_role('Approver', 'approver', 'Approver with special booking capabilities');
 
